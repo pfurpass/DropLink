@@ -1,46 +1,45 @@
-# 🚀 DropLink
+# DropLink
 
 **DropLink** ist ein moderner, simpel gehaltener File-Sharing-Dienst (ähnlich wie WeTransfer, SwissTransfer oder file.io). Er ermöglicht es Nutzern, Dateien sicher, schnell und ohne Account-Zwang hochzuladen und als kompakten Link oder QR-Code zu teilen.
 
 ---
 
-## 🌟 Features
+## Features
 
 - **Premium Design:** Lebendiges, modernes Glassmorphism-UI mit sanften Farbverläufen und Micro-Animations.
 - **Drag & Drop:** Intuitiver Datei-Upload für einzelne oder mehrere Dateien.
-- **Automatisches Zippen:** Mehrere Dateien werden auf dem Server nahtlos zu einer einzigen ZIP-Datei zusammengefasst und beim Download so ausgeliefert.
+- **Automatisches Zippen:** Mehrere Dateien werden auf dem Server nahtlos zu einer einzigen ZIP-Datei zusammengefasst.
 - **Ablaufdatum:** Einstellbare Gültigkeit der Links (1 Stunde bis 30 Tage).
 - **Download-Limits:** Links nach einer bestimmten Anzahl von Downloads automatisch invalidieren.
-- **Passwortschutz:** Optionaler Schutz der Dateien mit AES-SHA256 gehärtetem Passwort-Hash.
-- **Intelligentes Cleanup:** Ein integrierter Cron-Job bereinigt vollautomatisch abgelaufene Dateien und Metadaten vom Datenträger und aus der Datenbank (sogar sofort nach einem Server-Restart).
-- **QR-Code Generator:** Erstellt beim Upload automatisch einen scanbaren QR-Code für schnelles Teilen auf mobile Geräte.
+- **Passwortschutz:** Optionaler Schutz mit `scrypt`-gehashetem Passwort (Salt + Timing-Safe-Vergleich).
+- **Dateigrößen-Limit:** Uploads werden serverseitig auf max. 100 MB pro Datei begrenzt (konfigurierbar).
+- **Intelligentes Cleanup:** Integrierter Cron-Job bereinigt abgelaufene Dateien und Datenbankeinträge vollautomatisch.
+- **QR-Code Generator:** Erstellt beim Upload automatisch einen scanbaren QR-Code.
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 **Frontend**
-- React 18 + Vite
-- React Dropzone (für Drag & Drop)
-- Framer Motion (für flüssige Animationen)
+- React 19 + Vite
+- React Dropzone (Drag & Drop)
+- Framer Motion (Animationen)
 - Axios & React Router
 - Lucide React (Icons) & qrcode.react
 
 **Backend**
-- Node.js & Express.js
-- SQLite (Eingebettete Datenbank für extrem einfaches Setup)
-- Multer (für Resumable / Chunked Upload Handling)
-- Archiver (für On-the-Fly ZIP Generierung)
-- fs-extra & node-cron Konzepte
+- Node.js & Express 5
+- SQLite (eingebettete Datenbank, kein Setup nötig)
+- Multer (Datei-Upload mit Größen-Limit)
+- Archiver (On-the-Fly ZIP-Generierung)
 
 ---
 
-## 🚀 Installation & Start
+## Installation & Start
 
-Um das Projekt lokal auszuführen, benötigst du **Node.js** auf deinem System. Das Projekt ist aufgeteilt in `frontend` und `backend`.
+Voraussetzung: **Node.js** auf dem System installiert.
 
 ### 1. Backend starten
-Das Backend läuft standardmäßig auf **Port 3001** und speichert die Uploads im lokalen Ordner `backend/uploads`.
 
 ```bash
 cd backend
@@ -48,10 +47,16 @@ npm install
 npm start
 ```
 
-*(Die SQLite-Datenbank `droplink.sqlite` und der Ordner `uploads` werden beim ersten Start automatisch erstellt.)*
+Das Backend läuft auf **Port 3001**. Die SQLite-Datenbank und der `uploads/`-Ordner werden beim ersten Start automatisch angelegt.
+
+Optionale Umgebungsvariablen (`.env` im `backend/`-Ordner):
+
+```env
+PORT=3001
+MAX_FILE_SIZE_MB=100
+```
 
 ### 2. Frontend starten
-Das Frontend läuft über Vite standardmäßig auf **Port 5173**.
 
 ```bash
 cd frontend
@@ -59,28 +64,35 @@ npm install
 npm run dev
 ```
 
-Öffne anschließend deinen Browser und besuche: **[http://localhost:5173](http://localhost:5173)**
+Umgebungsvariablen (`.env` im `frontend/`-Ordner, bereits enthalten):
+
+```env
+VITE_API_URL=http://localhost:3001
+VITE_APP_URL=http://localhost:5173
+```
+
+Anschließend Browser öffnen: **http://localhost:5173**
 
 ---
 
-## 📁 Projektstruktur
+## Projektstruktur
 
-```text
+```
 sharing/
 ├── backend/
-│   ├── database.js     # SQLite Tabellen-Schema & Setup
-│   ├── server.js       # Express Server, Upload/Download Routes & Cleanup-Job
-│   ├── uploads/        # (wird automatisch erstellt) Hier landen die Dateien
-│   └── package.json    # Backend Dependencies
+│   ├── database.js     # SQLite Schema & Setup
+│   ├── server.js       # Express Routes, Upload/Download, Cleanup-Job
+│   ├── uploads/        # (auto-erstellt) Hochgeladene Dateien
+│   └── package.json
 └── frontend/
+    ├── .env                   # API- und App-URL Konfiguration
     ├── src/
     │   ├── App.jsx            # React Router Setup
-    │   ├── index.css          # Premium Global Styles (Glassmorphism, Animations)
+    │   ├── index.css          # Globale Styles (Glassmorphism)
     │   └── pages/
-    │       ├── Home.jsx       # Upload-Seite & Konfiguration
-    │       └── Download.jsx   # Download-Screen & Passwort-Abfrage
-    ├── package.json           # Frontend Dependencies
-    └── vite.config.js         # Vite Konfiguration
-\`\`\`
+    │       ├── Home.jsx       # Upload-Seite
+    │       └── Download.jsx   # Download-Seite & Passwort-Abfrage
+    └── package.json
+```
 
 ---

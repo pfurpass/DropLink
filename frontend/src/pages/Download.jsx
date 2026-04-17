@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { Download as DownloadIcon, File, Lock, AlertTriangle, ArrowLeft, Archive } from 'lucide-react';
@@ -14,7 +14,7 @@ const Download = () => {
   const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
-    axios.get(`http://localhost:3001/api/share/${id}`)
+    axios.get(`${import.meta.env.VITE_API_URL}/api/share/${id}`)
       .then(res => {
         setData(res.data);
         setLoading(false);
@@ -30,7 +30,7 @@ const Download = () => {
     setError('');
 
     try {
-      const response = await axios.post(`http://localhost:3001/api/download/${id}`, { password }, {
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/download/${id}`, { password }, {
         responseType: 'blob'
       });
       

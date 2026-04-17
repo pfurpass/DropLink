@@ -40,7 +40,7 @@ const Home = () => {
     if (password) formData.append('password', password);
 
     try {
-      const res = await axios.post('http://localhost:3001/api/upload', formData, {
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/upload`, formData, {
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
           setProgress(percentCompleted);
@@ -57,13 +57,13 @@ const Home = () => {
   };
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(`http://localhost:5173/d/${result}`);
+    navigator.clipboard.writeText(`${import.meta.env.VITE_APP_URL}/d/${result}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   if (result) {
-    const link = `http://localhost:5173/d/${result}`;
+    const link = `${import.meta.env.VITE_APP_URL}/d/${result}`;
     return (
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="card">
         <div className="header" style={{ marginBottom: '1.5rem' }}>

@@ -34,3 +34,6 @@ backend/droplink.sqlite-journal
 .env.test
 .env.production
 .env.local
+
+# frontend/.env contains only non-sensitive defaults (localhost URLs) — keep tracked
+!frontend/.env
