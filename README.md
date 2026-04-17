@@ -1,20 +1,20 @@
 # DropLink
 
-**DropLink** ist ein moderner, simpel gehaltener File-Sharing-Dienst (ähnlich wie WeTransfer, SwissTransfer oder file.io). Er ermöglicht es Nutzern, Dateien sicher, schnell und ohne Account-Zwang hochzuladen und als kompakten Link oder QR-Code zu teilen.
+**DropLink** is a modern, lightweight file sharing service (similar to WeTransfer or file.io). It lets users upload files and share them as a short link or QR code — no account required.
 
 ---
 
 ## Features
 
-- **Premium Design:** Lebendiges, modernes Glassmorphism-UI mit sanften Farbverläufen und Micro-Animations.
-- **Drag & Drop:** Intuitiver Datei-Upload für einzelne oder mehrere Dateien.
-- **Automatisches Zippen:** Mehrere Dateien werden auf dem Server nahtlos zu einer einzigen ZIP-Datei zusammengefasst.
-- **Ablaufdatum:** Einstellbare Gültigkeit der Links (1 Stunde bis 30 Tage).
-- **Download-Limits:** Links nach einer bestimmten Anzahl von Downloads automatisch invalidieren.
-- **Passwortschutz:** Optionaler Schutz mit `scrypt`-gehashetem Passwort (Salt + Timing-Safe-Vergleich).
-- **Dateigrößen-Limit:** Uploads werden serverseitig auf max. 100 MB pro Datei begrenzt (konfigurierbar).
-- **Intelligentes Cleanup:** Integrierter Cron-Job bereinigt abgelaufene Dateien und Datenbankeinträge vollautomatisch.
-- **QR-Code Generator:** Erstellt beim Upload automatisch einen scanbaren QR-Code.
+- **Glassmorphism UI:** Clean, modern design with smooth animations via Framer Motion.
+- **Drag & Drop:** Intuitive file upload for single or multiple files.
+- **Auto ZIP:** Multiple files are bundled into a single ZIP archive on the fly.
+- **Expiry:** Configurable link lifetime from 1 hour up to 30 days.
+- **Download limits:** Automatically invalidate links after a set number of downloads.
+- **Password protection:** Optional password secured with `scrypt` hashing (salt + timing-safe comparison).
+- **File size limit:** Uploads capped at 100 MB per file server-side (configurable).
+- **Auto cleanup:** Background job removes expired files and database entries on startup and every hour.
+- **QR code:** A scannable QR code is generated automatically after each upload.
 
 ---
 
@@ -22,24 +22,24 @@
 
 **Frontend**
 - React 19 + Vite
-- React Dropzone (Drag & Drop)
-- Framer Motion (Animationen)
+- React Dropzone
+- Framer Motion
 - Axios & React Router
-- Lucide React (Icons) & qrcode.react
+- Lucide React & qrcode.react
 
 **Backend**
 - Node.js & Express 5
-- SQLite (eingebettete Datenbank, kein Setup nötig)
-- Multer (Datei-Upload mit Größen-Limit)
-- Archiver (On-the-Fly ZIP-Generierung)
+- SQLite (embedded, zero config)
+- Multer (file uploads with size limits)
+- Archiver (on-the-fly ZIP generation)
 
 ---
 
-## Installation & Start
+## Getting Started
 
-Voraussetzung: **Node.js** auf dem System installiert.
+Requires **Node.js** installed on your system.
 
-### 1. Backend starten
+### 1. Start the backend
 
 ```bash
 cd backend
@@ -47,16 +47,16 @@ npm install
 npm start
 ```
 
-Das Backend läuft auf **Port 3001**. Die SQLite-Datenbank und der `uploads/`-Ordner werden beim ersten Start automatisch angelegt.
+The backend runs on **port 3001**. The SQLite database and `uploads/` folder are created automatically on first start.
 
-Optionale Umgebungsvariablen (`.env` im `backend/`-Ordner):
+Optional environment variables (`backend/.env`):
 
 ```env
 PORT=3001
 MAX_FILE_SIZE_MB=100
 ```
 
-### 2. Frontend starten
+### 2. Start the frontend
 
 ```bash
 cd frontend
@@ -64,34 +64,34 @@ npm install
 npm run dev
 ```
 
-Umgebungsvariablen (`.env` im `frontend/`-Ordner, bereits enthalten):
+Environment variables (`frontend/.env`, already included):
 
 ```env
 VITE_API_URL=http://localhost:3001
 VITE_APP_URL=http://localhost:5173
 ```
 
-Anschließend Browser öffnen: **http://localhost:5173**
+Then open your browser at **http://localhost:5173**
 
 ---
 
-## Projektstruktur
+## Project Structure
 
 ```
 sharing/
 ├── backend/
-│   ├── database.js     # SQLite Schema & Setup
-│   ├── server.js       # Express Routes, Upload/Download, Cleanup-Job
-│   ├── uploads/        # (auto-erstellt) Hochgeladene Dateien
+│   ├── database.js     # SQLite schema & setup
+│   ├── server.js       # Express routes, upload/download, cleanup job
+│   ├── uploads/        # (auto-created) uploaded files
 │   └── package.json
 └── frontend/
-    ├── .env                   # API- und App-URL Konfiguration
+    ├── .env                   # API and app URL config
     ├── src/
-    │   ├── App.jsx            # React Router Setup
-    │   ├── index.css          # Globale Styles (Glassmorphism)
+    │   ├── App.jsx            # React Router setup
+    │   ├── index.css          # Global styles (Glassmorphism)
     │   └── pages/
-    │       ├── Home.jsx       # Upload-Seite
-    │       └── Download.jsx   # Download-Seite & Passwort-Abfrage
+    │       ├── Home.jsx       # Upload page
+    │       └── Download.jsx   # Download page & password prompt
     └── package.json
 ```
 
