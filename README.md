@@ -42,22 +42,22 @@ Um das Projekt lokal auszuführen, benötigst du **Node.js** auf deinem System. 
 ### 1. Backend starten
 Das Backend läuft standardmäßig auf **Port 3001** und speichert die Uploads im lokalen Ordner `backend/uploads`.
 
-\`\`\`bash
+```bash
 cd backend
 npm install
 npm start
-\`\`\`
+```
 
 *(Die SQLite-Datenbank `droplink.sqlite` und der Ordner `uploads` werden beim ersten Start automatisch erstellt.)*
 
 ### 2. Frontend starten
 Das Frontend läuft über Vite standardmäßig auf **Port 5173**.
 
-\`\`\`bash
+```bash
 cd frontend
 npm install
 npm run dev
-\`\`\`
+```
 
 Öffne anschließend deinen Browser und besuche: **[http://localhost:5173](http://localhost:5173)**
 
@@ -65,7 +65,7 @@ npm run dev
 
 ## 📁 Projektstruktur
 
-\`\`\`text
+```text
 sharing/
 ├── backend/
 │   ├── database.js     # SQLite Tabellen-Schema & Setup
