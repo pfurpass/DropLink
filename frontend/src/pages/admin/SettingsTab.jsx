@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Check } from 'lucide-react';
+import { Check, Send } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL;
 
@@ -48,12 +48,16 @@ const Section = ({ title, children }) => (
 const SettingsTab = ({ canEdit }) => {
   const readOnly = !canEdit;
   const [config, setConfig] = useState({
-    PORT: '3001', MAX_FILE_SIZE_MB: '100',
+    PORT: '3001', MAX_FILE_SIZE_MB: '100', APP_URL: '',
     AUTH_METHOD: 'local', DB_TYPE: 'sqlite',
     LDAP_URL: '', LDAP_BASE_DN: '', LDAP_BIND_DN: '', LDAP_BIND_PASS: '',
     SSO_CLIENT_ID: '', SSO_CLIENT_SECRET: '', SSO_CALLBACK_URL: '',
+    MAIL_ENABLED: 'false', SMTP_HOST: '', SMTP_PORT: '587', SMTP_SECURE: 'false',
+    SMTP_USER: '', SMTP_PASS: '', SMTP_FROM: '',
   });
   const [status, setStatus] = useState('');
+  const [testTo, setTestTo] = useState('');
+  const [testStatus, setTestStatus] = useState('');
 
   useEffect(() => {
     axios.get(`${API}/api/admin/config`)
@@ -73,6 +77,19 @@ const SettingsTab = ({ canEdit }) => {
 
   const authMethod = config.AUTH_METHOD || 'local';
   const dbType = config.DB_TYPE || 'sqlite';
+  const mailOn = String(config.MAIL_ENABLED).toLowerCase() === 'true';
+
+  const sendTest = async () => {
+    if (!testTo.trim()) return;
+    setTestStatus('sending');
+    try {
+      await axios.post(`${API}/api/admin/mail-test`, { to: testTo.trim() });
+      setTestStatus('sent');
+    } catch (err) {
+      setTestStatus(err.response?.data?.error || 'error');
+    }
+    setTimeout(() => setTestStatus(''), 4000);
+  };
 
   return (
     <div>
@@ -80,6 +97,7 @@ const SettingsTab = ({ canEdit }) => {
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
           <div style={{ width: '110px' }}>{field('PORT', 'PORT', config, setConfig, readOnly, 'number')}</div>
           <div style={{ width: '180px' }}>{field('Max File Size (MB)', 'MAX_FILE_SIZE_MB', config, setConfig, readOnly, 'number')}</div>
+          <div style={{ flex: 1, minWidth: '220px' }}>{field('Public App URL (for email links)', 'APP_URL', config, setConfig, readOnly, 'text', 'http://localhost:5173')}</div>
         </div>
       </Section>
 
@@ -151,6 +169,76 @@ const SettingsTab = ({ canEdit }) => {
             {field('Client Secret', 'SSO_CLIENT_SECRET', config, setConfig, readOnly, 'password')}
             {field('Callback URL', 'SSO_CALLBACK_URL', config, setConfig, readOnly, 'text', 'https://yourdomain.com/auth/callback')}
           </div>
+        )}
+      </Section>
+
+      <Section title="Email (SMTP)">
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: mailOn ? '1rem' : 0, cursor: readOnly ? 'default' : 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={mailOn}
+            disabled={readOnly}
+            onChange={e => setConfig(c => ({ ...c, MAIL_ENABLED: e.target.checked ? 'true' : 'false' }))}
+          />
+          <span style={{ fontSize: '0.9rem' }}>Enable sending download links by email</span>
+        </label>
+
+        {mailOn && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.85rem' }}>
+              {field('SMTP Host', 'SMTP_HOST', config, setConfig, readOnly, 'text', 'smtp.example.com')}
+              {field('SMTP Port', 'SMTP_PORT', config, setConfig, readOnly, 'number', '587')}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>SMTP Secure (TLS)</label>
+                <select
+                  className="form-control"
+                  value={String(config.SMTP_SECURE).toLowerCase() === 'true' ? 'true' : 'false'}
+                  disabled={readOnly}
+                  onChange={e => setConfig(c => ({ ...c, SMTP_SECURE: e.target.value }))}
+                  style={{ padding: '0.5rem 0.75rem', fontSize: '0.9rem', opacity: readOnly ? 0.6 : 1 }}
+                >
+                  <option value="false">false (STARTTLS / port 587)</option>
+                  <option value="true">true (implicit TLS / port 465)</option>
+                </select>
+              </div>
+              {field('SMTP Username', 'SMTP_USER', config, setConfig, readOnly)}
+              {field('SMTP Password', 'SMTP_PASS', config, setConfig, readOnly, 'password')}
+              {field('From Address', 'SMTP_FROM', config, setConfig, readOnly, 'text', 'noreply@example.com')}
+            </div>
+
+            {canEdit && (
+              <div style={{ marginTop: '1rem', padding: '0.85rem 1rem', background: 'rgba(15,23,42,0.4)', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                  Send a test email using the currently saved settings (requires backend restart after you save).
+                </p>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <input
+                    type="email"
+                    className="form-control"
+                    placeholder="your@email.com"
+                    value={testTo}
+                    onChange={e => setTestTo(e.target.value)}
+                    style={{ flex: 1, minWidth: '180px', padding: '0.45rem 0.75rem', fontSize: '0.9rem' }}
+                  />
+                  <button
+                    onClick={sendTest}
+                    disabled={!testTo.trim() || testStatus === 'sending'}
+                    style={{
+                      borderRadius: '8px', padding: '0.5rem 0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem',
+                      background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', color: 'var(--accent)', fontSize: '0.85rem',
+                      opacity: (!testTo.trim() || testStatus === 'sending') ? 0.45 : 1,
+                    }}
+                  >
+                    <Send size={13} />
+                    {testStatus === 'sending' ? 'Sending...' : testStatus === 'sent' ? 'Sent!' : 'Send Test'}
+                  </button>
+                </div>
+                {testStatus && testStatus !== 'sending' && testStatus !== 'sent' && (
+                  <p style={{ color: 'var(--danger)', fontSize: '0.78rem', marginTop: '0.5rem' }}>{testStatus}</p>
+                )}
+              </div>
+            )}
+          </>
         )}
       </Section>
 

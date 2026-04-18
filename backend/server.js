@@ -10,6 +10,7 @@ const archiver = require('archiver');
 const db = require('./database');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -85,6 +86,75 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+function mailEnabled() {
+  return String(process.env.MAIL_ENABLED).toLowerCase() === 'true' && !!process.env.SMTP_HOST;
+}
+
+function buildMailer() {
+  if (!mailEnabled()) return null;
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT) || 587,
+    secure: String(process.env.SMTP_SECURE).toLowerCase() === 'true',
+    auth: process.env.SMTP_USER ? {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS || '',
+    } : undefined,
+  });
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+async function sendShareMail({ to, senderName, message, link, password, expiresAt, fileCount, size }) {
+  const transporter = buildMailer();
+  if (!transporter) throw new Error('Mail not configured');
+
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'droplink@localhost';
+  const sender = (senderName || '').trim() || 'Someone';
+  const expires = new Date(expiresAt).toLocaleString();
+  const fileLabel = `${fileCount} file${fileCount !== 1 ? 's' : ''}`;
+
+  const textLines = [
+    `${sender} has shared ${fileLabel} (${formatBytes(size)}) with you via DropLink.`,
+    '',
+    `Download: ${link}`,
+    `Expires: ${expires}`,
+  ];
+  if (password) textLines.push(`Password: ${password}`);
+  if (message) textLines.push('', 'Message:', message);
+
+  const html = `
+    <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#0f172a">
+      <h2 style="margin:0 0 12px">Files shared with you</h2>
+      <p style="color:#475569;margin:0 0 20px"><strong>${escapeHtml(sender)}</strong> has shared ${fileLabel} (${formatBytes(size)}) with you via DropLink.</p>
+      <p style="margin:0 0 24px"><a href="${escapeHtml(link)}" style="display:inline-block;background:#3b82f6;color:white;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:500">Download files</a></p>
+      <div style="background:#f1f5f9;padding:14px 16px;border-radius:8px;font-size:14px;color:#334155">
+        <div><strong>Link:</strong> <a href="${escapeHtml(link)}" style="color:#3b82f6;word-break:break-all">${escapeHtml(link)}</a></div>
+        <div style="margin-top:6px"><strong>Expires:</strong> ${escapeHtml(expires)}</div>
+        ${password ? `<div style="margin-top:6px"><strong>Password:</strong> <code style="background:#e2e8f0;padding:2px 6px;border-radius:4px">${escapeHtml(password)}</code></div>` : ''}
+      </div>
+      ${message ? `<blockquote style="border-left:3px solid #cbd5e1;padding-left:12px;margin:20px 0 0;color:#475569;white-space:pre-wrap">${escapeHtml(message)}</blockquote>` : ''}
+      <p style="color:#94a3b8;font-size:12px;margin-top:32px">Sent via DropLink</p>
+    </div>
+  `;
+
+  await transporter.sendMail({
+    from,
+    to,
+    subject: `${sender} sent you files via DropLink`,
+    text: textLines.join('\n'),
+    html,
+  });
+}
+
 const SHARE_ID_RE = /^[a-f0-9]{8}$/;
 
 // ── Public routes ────────────────────────────────────────────────────────────
@@ -111,7 +181,31 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
       "INSERT INTO shares (id, fileName, originalNames, size, expiresAt, maxDownloads, passwordHash) VALUES (?, ?, ?, ?, ?, ?, ?)",
       [shareId, files.length > 1 ? 'Archive.zip' : sanitizeFilename(files[0].originalname), originalNames, size, expiresAt.toISOString(), maxDls, passwordHash]
     );
-    res.json({ linkId: shareId });
+
+    const mailTo = String(req.body.mailTo || '').trim();
+    let mailSent = false;
+    let mailError = null;
+    if (mailTo && mailEnabled()) {
+      try {
+        const appUrl = (process.env.APP_URL || '').replace(/\/$/, '');
+        await sendShareMail({
+          to: mailTo,
+          senderName: req.body.mailFromName,
+          message: req.body.mailMessage,
+          link: `${appUrl}/d/${shareId}`,
+          password: password || null,
+          expiresAt,
+          fileCount: files.length,
+          size,
+        });
+        mailSent = true;
+      } catch (err) {
+        console.error('Mail send failed:', err.message);
+        mailError = 'Upload succeeded but the email could not be sent.';
+      }
+    }
+
+    res.json({ linkId: shareId, mailSent, mailError });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Upload failed' });
@@ -193,6 +287,10 @@ app.post('/api/download/:id', async (req, res) => {
     console.error(err);
     if (!res.headersSent) res.status(500).json({ error: 'Download failed' });
   }
+});
+
+app.get('/api/mail-status', (_req, res) => {
+  res.json({ enabled: mailEnabled() });
 });
 
 app.get('/api/expiry-options', async (_req, res) => {
@@ -385,14 +483,35 @@ function readEnvFile() {
 }
 
 const CONFIG_ALLOWED = [
-  'PORT', 'MAX_FILE_SIZE_MB',
+  'PORT', 'MAX_FILE_SIZE_MB', 'APP_URL',
   'AUTH_METHOD', 'LDAP_URL', 'LDAP_BASE_DN', 'LDAP_BIND_DN', 'LDAP_BIND_PASS',
   'SSO_CLIENT_ID', 'SSO_CLIENT_SECRET', 'SSO_CALLBACK_URL',
   'DB_TYPE',
+  'MAIL_ENABLED', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_SECURE', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM',
 ];
 
 app.get('/api/admin/config', (_req, res) => {
   res.json(readEnvFile());
+});
+
+app.post('/api/admin/mail-test', requireAdmin, async (req, res) => {
+  const to = String(req.body.to || '').trim();
+  if (!to) return res.status(400).json({ error: 'Recipient required' });
+  if (!mailEnabled()) return res.status(400).json({ error: 'Mail is not enabled. Save settings and restart first.' });
+  try {
+    const transporter = buildMailer();
+    const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'droplink@localhost';
+    await transporter.sendMail({
+      from, to,
+      subject: 'DropLink test email',
+      text: 'This is a test email from DropLink. SMTP is working.',
+      html: '<p>This is a test email from DropLink. SMTP is working.</p>',
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Mail test failed:', err);
+    res.status(500).json({ error: err.message || 'Mail test failed' });
+  }
 });
 
 app.post('/api/admin/config', requireAdmin, (req, res) => {
@@ -406,6 +525,7 @@ app.post('/api/admin/config', requireAdmin, (req, res) => {
         } else {
           existing[key] = val;
         }
+        process.env[key] = existing[key];
       }
     });
     fs.writeFileSync(ENV_PATH, Object.entries(existing).map(([k, v]) => `${k}=${v}`).join('\n') + '\n');
