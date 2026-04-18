@@ -83,7 +83,8 @@ const Home = () => {
       else if (res.data.mailSent) setMailNotice(`Link sent to ${mailTo.trim()}`);
     } catch (err) {
       console.error(err);
-      alert('Upload failed');
+      const msg = err.response?.data?.error || err.message || 'Upload failed';
+      alert(msg);
     } finally {
       setUploading(false);
     }

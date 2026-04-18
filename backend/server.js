@@ -14,8 +14,6 @@ const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const MAX_FILE_SIZE_MB = parseInt(process.env.MAX_FILE_SIZE_MB || '100');
-const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production';
 const JWT_EXPIRES = '8h';
 
@@ -52,7 +50,15 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ storage, limits: { fileSize: MAX_FILE_SIZE } });
+function currentMaxSizeBytes() {
+  const mb = parseInt(process.env.MAX_FILE_SIZE_MB) || 100;
+  return mb * 1024 * 1024;
+}
+
+function uploadMiddleware(req, res, next) {
+  const u = multer({ storage, limits: { fileSize: currentMaxSizeBytes() } });
+  u.array('files')(req, res, next);
+}
 
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -159,7 +165,7 @@ const SHARE_ID_RE = /^[a-f0-9]{8}$/;
 
 // ── Public routes ────────────────────────────────────────────────────────────
 
-app.post('/api/upload', upload.array('files'), async (req, res) => {
+app.post('/api/upload', uploadMiddleware, async (req, res) => {
   const { expiresInSeconds, maxDownloads, password } = req.body;
   const shareId = req.shareId;
   const files = req.files;
@@ -538,7 +544,8 @@ app.post('/api/admin/config', requireAdmin, (req, res) => {
 
 app.use((err, _req, res, next) => {
   if (err.code === 'LIMIT_FILE_SIZE') {
-    return res.status(413).json({ error: `File too large. Maximum ${MAX_FILE_SIZE_MB}MB per file.` });
+    const mb = parseInt(process.env.MAX_FILE_SIZE_MB) || 100;
+    return res.status(413).json({ error: `File too large. Maximum ${mb}MB per file.` });
   }
   next(err);
 });
@@ -577,7 +584,9 @@ async function seedDefaultUser() {
 runCleanup();
 setInterval(runCleanup, 1000 * 60 * 60);
 
-app.listen(PORT, async () => {
+const server = app.listen(PORT, async () => {
   console.log(`Backend running on port ${PORT}`);
   await seedDefaultUser();
 });
+server.requestTimeout = 0;
+server.timeout = 0;
