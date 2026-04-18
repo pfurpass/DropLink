@@ -33,16 +33,18 @@
 - **Expiry presets** — fully configurable from the admin panel (seconds, minutes, hours, or days).
 - **Download limits** — auto-invalidate after N downloads.
 - **Password protection** via `scrypt` with random salt + timing-safe comparison.
-- **Per-file size limit** enforced server-side.
+- **Send by email** — if SMTP is configured, the sender can type a recipient address and the backend emails them the link (plus the password in plaintext, if one was set). Optional sender name and message included.
+- **Per-file size limit** enforced server-side. Changing it in the admin UI takes effect immediately — no restart needed, the upload middleware reads the current env value per request.
+- **Large uploads** — request timeout disabled on the HTTP server so multi-GB files aren't cut off mid-transfer.
 - **QR code** generated for each share.
 - **Auto cleanup** on startup and hourly — expired files and DB rows removed.
 
 ### Admin panel
 - **JWT-based login** at `/admin/login`. Default credentials are seeded on first run from `ADMIN_USER` / `ADMIN_PASS` (see `.env`).
-- **Shares tab** — live countdown per share, adjust expiry (± any preset), force-expire, delete.
+- **Shares tab** — live countdown per share, adjust expiry (± any preset), force-expire, delete, and **reset/remove a share's password** if the recipient lost it (never revealed — only overwritten with a new value or cleared).
 - **Expiry Presets tab** — add/delete presets; changes show up instantly in the upload dropdown and the extend panel.
 - **Users tab** — add users with `admin` or `viewer` role, change passwords, delete. Viewers get a read-only panel.
-- **Settings tab** — edit server config (PORT, max file size), pick database backend, pick auth method (local / LDAP / SSO).
+- **Settings tab** — edit server config (PORT, max file size, public APP_URL), pick database backend, pick auth method (local / LDAP / SSO), configure SMTP for outgoing mail, and send a test email to verify the config. Most settings apply live; `PORT` still requires a backend restart.
 
 ---
 
@@ -59,6 +61,7 @@
 - Multer (uploads with size limits)
 - Archiver (on-the-fly ZIP)
 - jsonwebtoken (admin auth)
+- Nodemailer (SMTP for outgoing share links)
 
 ---
 
@@ -104,14 +107,20 @@ Open **http://localhost:5173/admin** — redirects to `/admin/login`.
 | Key | Purpose | Default |
 | --- | --- | --- |
 | `PORT` | Backend HTTP port | `3001` |
-| `MAX_FILE_SIZE_MB` | Per-file upload limit | `512` |
+| `MAX_FILE_SIZE_MB` | Per-file upload limit (live-reloaded on save) | `512` |
+| `APP_URL` | Public URL of the frontend — used when emailing download links | `http://localhost:5173` |
 | `JWT_SECRET` | HMAC key for admin tokens | `change-me-in-production` |
 | `ADMIN_USER` / `ADMIN_PASS` | First-run default admin | `admin` / `admin` |
 | `DB_TYPE` | Database backend | `sqlite` (only implemented option) |
 | `AUTH_METHOD` | Admin auth method | `local` (only implemented option) |
 | `LDAP_*` / `SSO_*` | Placeholders for LDAP / OAuth — not yet wired up | empty |
+| `MAIL_ENABLED` | Turn outgoing email on/off | `false` |
+| `SMTP_HOST` / `SMTP_PORT` | SMTP server | empty / `587` |
+| `SMTP_SECURE` | `true` for implicit TLS (port 465), `false` for STARTTLS (587) | `false` |
+| `SMTP_USER` / `SMTP_PASS` | SMTP auth | empty |
+| `SMTP_FROM` | From address on outgoing mails — falls back to `SMTP_USER` | empty |
 
-Most settings can also be edited live from the Settings tab (writes back to `.env`). Restart the backend to pick up `PORT`, `MAX_FILE_SIZE_MB`, or `JWT_SECRET` changes.
+Most settings can also be edited live from the Settings tab (writes back to `.env` **and** to the running process's env, so mail / auth / file-size changes apply without a restart). `PORT` still requires a backend restart because the listener is already bound.
 
 ### Roles
 
@@ -157,3 +166,5 @@ sharing/
 - The repo tracks `.env.example`, not `.env`. Do not commit real secrets.
 - Rotate `JWT_SECRET` before any production use — all existing tokens become invalid on change (that's by design).
 - The default `admin / admin` credentials exist only so the first login works. Change the password or create a new admin and delete the default via the Users tab.
+- When a share is password-protected **and** sent by email, the password is included in the email body in plaintext. That's convenient but defeats the point of a password if the inbox is compromised — consider leaving the email password-free and delivering the password over a different channel.
+- Admin can reset or remove a share's password from the Shares tab, but the original password is never revealed — it's one-way hashed.
