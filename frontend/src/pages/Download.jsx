@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { formatSize } from '../utils/format';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { Download as DownloadIcon, File, Lock, AlertTriangle, ArrowLeft, Archive } from 'lucide-react';
@@ -100,7 +101,7 @@ const Download = () => {
               {data.fileName}
             </h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-              {data.fileCount} {data.fileCount === 1 ? 'file' : 'files'} • {(data.size / 1024 / 1024).toFixed(2)} MB
+              {data.fileCount} {data.fileCount === 1 ? 'file' : 'files'} • {formatSize(data.size)}
             </p>
           </div>
         </div>

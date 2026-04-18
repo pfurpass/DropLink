@@ -1,9 +1,12 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { formatSize } from '../utils/format';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
-import { UploadCloud, File, X, Copy, Check, Link } from 'lucide-react';
+import { UploadCloud, File, X, Copy, Check } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { motion } from 'framer-motion';
+
+const API = import.meta.env.VITE_API_URL;
 
 const Home = () => {
   const [files, setFiles] = useState([]);
@@ -12,10 +15,23 @@ const Home = () => {
   const [result, setResult] = useState(null);
   const [copied, setCopied] = useState(false);
 
-  // Settings
-  const [expiresInHours, setExpiresInHours] = useState('24');
+  const [expiryOptions, setExpiryOptions] = useState([]);
+  const [expiresInSeconds, setExpiresInSeconds] = useState('');
   const [maxDownloads, setMaxDownloads] = useState('');
   const [password, setPassword] = useState('');
+
+  useEffect(() => {
+    axios.get(`${API}/api/expiry-options`)
+      .then(res => {
+        setExpiryOptions(res.data);
+        if (res.data.length > 0) setExpiresInSeconds(String(res.data[0].seconds));
+      })
+      .catch(() => {
+        const fallback = [{ id: 0, label: '1 Day', seconds: 86400 }];
+        setExpiryOptions(fallback);
+        setExpiresInSeconds('86400');
+      });
+  }, []);
 
   const onDrop = useCallback(acceptedFiles => {
     setFiles(prev => [...prev, ...acceptedFiles]);
@@ -29,24 +45,23 @@ const Home = () => {
 
   const handleUpload = async () => {
     if (files.length === 0) return;
-    
+
     setUploading(true);
     setProgress(0);
 
     const formData = new FormData();
     files.forEach(file => formData.append('files', file));
-    formData.append('expiresInHours', expiresInHours);
+    formData.append('expiresInSeconds', expiresInSeconds);
     if (maxDownloads) formData.append('maxDownloads', maxDownloads);
     if (password) formData.append('password', password);
 
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/upload`, formData, {
+      const res = await axios.post(`${API}/api/upload`, formData, {
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
           setProgress(percentCompleted);
         }
       });
-      
       setResult(res.data.linkId);
     } catch (err) {
       console.error(err);
@@ -120,7 +135,7 @@ const Home = () => {
                 <File className="file-icon" />
                 <div className="file-details">
                   <span className="file-name">{f.name}</span>
-                  <span className="file-size">{(f.size / 1024 / 1024).toFixed(2)} MB</span>
+                  <span className="file-size">{formatSize(f.size)}</span>
                 </div>
               </div>
               <button className="remove-btn" onClick={() => removeFile(i)} disabled={uploading}>
@@ -135,11 +150,10 @@ const Home = () => {
         <div className="grid-settings" style={{ marginTop: '2rem' }}>
           <div className="form-group" style={{ marginTop: 0 }}>
             <label className="form-label">Expires in</label>
-            <select className="form-control" value={expiresInHours} onChange={e => setExpiresInHours(e.target.value)} disabled={uploading}>
-              <option value="1">1 Hour</option>
-              <option value="24">1 Day</option>
-              <option value="168">7 Days</option>
-              <option value="720">30 Days</option>
+            <select className="form-control" value={expiresInSeconds} onChange={e => setExpiresInSeconds(e.target.value)} disabled={uploading}>
+              {expiryOptions.map(opt => (
+                <option key={opt.id} value={opt.seconds}>{opt.label}</option>
+              ))}
             </select>
           </div>
           <div className="form-group" style={{ marginTop: 0 }}>

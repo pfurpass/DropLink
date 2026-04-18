@@ -29,12 +29,11 @@ backend/uploads/
 backend/droplink.sqlite
 backend/droplink.sqlite-journal
 
-# Environment variables
+# Environment variables (contain secrets: JWT_SECRET, ADMIN_PASS, LDAP creds, SSO creds)
 .env
 .env.test
 .env.production
 .env.local
 
-# .env files contain only non-sensitive defaults — keep tracked
+# Keep the frontend .env (only contains public API/app URLs, no secrets)
 !frontend/.env
-!backend/.env
