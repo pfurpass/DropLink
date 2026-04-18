@@ -4,6 +4,26 @@
 
 ---
 
+## Screenshots
+
+### Upload
+
+| Drop your files | Uploading | Done — link + QR |
+| --- | --- | --- |
+| ![](docs/screenshots/upload-home.png) | ![](docs/screenshots/upload-progress.png) | ![](docs/screenshots/upload-complete.png) |
+
+### Admin panel
+
+| Login | Shares | Expiry Presets |
+| --- | --- | --- |
+| ![](docs/screenshots/admin-login.png) | ![](docs/screenshots/admin-shares.png) | ![](docs/screenshots/admin-expiry-presets.png) |
+
+| Users | Settings |
+| --- | --- |
+| ![](docs/screenshots/admin-users.png) | ![](docs/screenshots/admin-settings.png) |
+
+---
+
 ## Features
 
 ### Sharing
@@ -104,6 +124,8 @@ Most settings can also be edited live from the Settings tab (writes back to `.en
 
 ```
 sharing/
+├── docs/
+│   └── screenshots/        # images used in the README
 ├── backend/
 │   ├── .env.example        # template — copy to .env and edit secrets
 │   ├── database.js         # SQLite schema, migrations, seed defaults

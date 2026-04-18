@@ -401,6 +401,20 @@ app.get('/api/admin/shares', async (_req, res) => {
   }
 });
 
+app.patch('/api/admin/shares/:id/password', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  if (!SHARE_ID_RE.test(id)) return res.status(404).json({ error: 'Not found' });
+  const password = req.body.password;
+  try {
+    const hash = password ? hashPassword(String(password)) : null;
+    await dbRun("UPDATE shares SET passwordHash = ? WHERE id = ?", [hash, id]);
+    res.json({ success: true, hasPassword: !!hash });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update password' });
+  }
+});
+
 app.patch('/api/admin/shares/:id/expiry', requireAdmin, async (req, res) => {
   const { id } = req.params;
   if (!SHARE_ID_RE.test(id)) return res.status(404).json({ error: 'Not found' });

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { formatSize } from '../../utils/format';
 import axios from 'axios';
-import { Trash2, Clock, ExternalLink, Lock, RefreshCw, Pencil, X } from 'lucide-react';
+import { Trash2, Clock, ExternalLink, Lock, RefreshCw, Pencil, X, KeyRound, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const API = import.meta.env.VITE_API_URL;
@@ -49,6 +49,8 @@ const SharesTab = ({ canEdit }) => {
   const [error, setError] = useState('');
   const [now, setNow] = useState(new Date());
   const [editingExpiry, setEditingExpiry] = useState(null);
+  const [editingPw, setEditingPw] = useState(null);
+  const [pwValue, setPwValue] = useState('');
   const [expiryOptions, setExpiryOptions] = useState([]);
 
   useEffect(() => {
@@ -92,6 +94,17 @@ const SharesTab = ({ canEdit }) => {
       setShares(prev => prev.filter(s => s.id !== id));
     } catch {
       setError('Failed to delete share.');
+    }
+  };
+
+  const savePassword = async (id, newPassword) => {
+    try {
+      const res = await axios.patch(`${API}/api/admin/shares/${id}/password`, { password: newPassword || null });
+      setShares(prev => prev.map(s => s.id === id ? { ...s, hasPassword: res.data.hasPassword } : s));
+      setEditingPw(null);
+      setPwValue('');
+    } catch {
+      setError('Failed to update password.');
     }
   };
 
@@ -181,7 +194,7 @@ const SharesTab = ({ canEdit }) => {
                   {expired ? 'Expired' : 'Active'}
                 </span>
 
-                {canEdit && <div style={{ display: 'flex', gap: '0.4rem' }}>
+                {canEdit && <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                   <button
                     onClick={() => setEditingExpiry(editingExpiry === share.id ? null : share.id)}
                     style={{
@@ -196,6 +209,21 @@ const SharesTab = ({ canEdit }) => {
                   >
                     {editingExpiry === share.id ? <X size={13} /> : <Pencil size={13} />}
                     {editingExpiry === share.id ? 'Cancel' : 'Extend'}
+                  </button>
+                  <button
+                    onClick={() => { setEditingPw(editingPw === share.id ? null : share.id); setPwValue(''); }}
+                    style={{
+                      ...btnBase,
+                      padding: '0.4rem 0.7rem',
+                      gap: '0.35rem',
+                      fontSize: '0.78rem',
+                      background: editingPw === share.id ? 'rgba(168,85,247,0.2)' : 'rgba(168,85,247,0.1)',
+                      border: `1px solid ${editingPw === share.id ? 'rgba(168,85,247,0.4)' : 'rgba(168,85,247,0.2)'}`,
+                      color: '#a855f7',
+                    }}
+                  >
+                    {editingPw === share.id ? <X size={13} /> : <KeyRound size={13} />}
+                    {editingPw === share.id ? 'Cancel' : 'Password'}
                   </button>
                   <button
                     onClick={() => handleExpire(share.id)}
@@ -232,6 +260,44 @@ const SharesTab = ({ canEdit }) => {
               </div>
 
               <AnimatePresence>
+                {canEdit && editingPw === share.id && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    style={{ overflow: 'hidden' }}
+                  >
+                    <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)', display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginRight: '0.25rem' }}>
+                        {share.hasPassword ? 'Change password:' : 'Set password:'}
+                      </span>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="New password"
+                        value={pwValue}
+                        onChange={e => setPwValue(e.target.value)}
+                        style={{ flex: 1, minWidth: '160px', padding: '0.35rem 0.6rem', fontSize: '0.85rem' }}
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => savePassword(share.id, pwValue)}
+                        disabled={!pwValue}
+                        style={{ ...btnBase, padding: '0.35rem 0.7rem', gap: '0.3rem', fontSize: '0.78rem', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.25)', color: 'var(--success)', opacity: !pwValue ? 0.4 : 1 }}
+                      >
+                        <Check size={13} /> Save
+                      </button>
+                      {share.hasPassword && (
+                        <button
+                          onClick={() => savePassword(share.id, null)}
+                          style={{ ...btnBase, padding: '0.35rem 0.7rem', gap: '0.3rem', fontSize: '0.78rem', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', color: 'var(--danger)' }}
+                        >
+                          <Trash2 size={13} /> Remove
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
                 {canEdit && editingExpiry === share.id && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
