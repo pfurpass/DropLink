@@ -1,7 +1,9 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 
-const dbPath = path.join(__dirname, 'droplink.sqlite');
+const dbPath = process.env.DB_PATH || path.join(__dirname, 'droplink.sqlite');
+fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 const db = new sqlite3.Database(dbPath);
 
 function seedExpiryDefaults() {

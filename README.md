@@ -67,9 +67,34 @@
 
 ## Getting Started
 
-Requires **Node.js**.
+### Docker (recommended)
 
-### 1. Backend
+One command, no local Node install needed:
+
+```bash
+cp backend/.env.example backend/.env   # edit JWT_SECRET + ADMIN_PASS + SMTP creds
+docker compose up -d --build
+```
+
+Then open **http://localhost:8080**. Admin panel is at **/admin/login**.
+
+Override the public URL and the host port via environment when starting:
+
+```bash
+PUBLIC_URL=https://drop.example.com HOST_PORT=443 docker compose up -d --build
+```
+
+The compose stack:
+- **backend** — Node 20 image, only exposed internally. Mounts `backend/.env` (so admin-UI config changes persist) plus two named volumes for `uploads/` and the SQLite database.
+- **frontend** — multi-stage build (Vite → static bundle) served by nginx, which also reverse-proxies `/api/*` to the backend with request buffering disabled and 1h timeouts so multi-GB uploads stream straight through.
+
+Tear down with `docker compose down`. Add `-v` to also drop the uploads and database volumes.
+
+### Local development (no Docker)
+
+Requires **Node.js 20+**.
+
+#### 1. Backend
 
 ```bash
 cd backend
@@ -80,7 +105,7 @@ npm start
 
 Runs on **port 3001**. SQLite file and `uploads/` directory are created on first start. The first run also seeds a default admin user from `ADMIN_USER` / `ADMIN_PASS` and prints those to the console.
 
-### 2. Frontend
+#### 2. Frontend
 
 ```bash
 cd frontend
@@ -133,15 +158,21 @@ Most settings can also be edited live from the Settings tab (writes back to `.en
 
 ```
 sharing/
+├── docker-compose.yml      # backend + frontend stack with volumes & proxy
 ├── docs/
 │   └── screenshots/        # images used in the README
 ├── backend/
+│   ├── Dockerfile          # Node 20-alpine image
+│   ├── .dockerignore
 │   ├── .env.example        # template — copy to .env and edit secrets
 │   ├── database.js         # SQLite schema, migrations, seed defaults
 │   ├── server.js           # Routes, auth, uploads, cleanup
 │   └── uploads/            # (auto-created) stored files
 └── frontend/
-    ├── .env                # public API/app URLs
+    ├── Dockerfile          # multi-stage: Vite build → nginx
+    ├── nginx.conf          # SPA + /api reverse proxy + long upload timeouts
+    ├── .dockerignore
+    ├── .env                # public API/app URLs (dev only)
     └── src/
         ├── App.jsx         # Routes + PrivateRoute
         ├── utils/

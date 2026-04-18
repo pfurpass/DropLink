@@ -1,0 +1,38 @@
+services:
+  backend:
+    build: ./backend
+    container_name: droplink-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      # Store the SQLite file in the mounted data volume instead of /app
+      DB_PATH: /app/data/droplink.sqlite
+    volumes:
+      # Persist config changes made from the admin UI back to host
+      - ./backend/.env:/app/.env
+      # Persist uploaded files and the SQLite database across container restarts
+      - droplink_uploads:/app/uploads
+      - droplink_data:/app/data
+    expose:
+      - "3001"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Empty VITE_API_URL → frontend calls same-origin /api/*, which nginx proxies to backend
+        VITE_API_URL: ""
+        # Public URL that appears in QR codes and generated download links.
+        # Override via compose env: PUBLIC_URL=https://drop.example.com docker compose up -d --build
+        VITE_APP_URL: "${PUBLIC_URL:-http://localhost:8080}"
+    container_name: droplink-frontend
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT:-8080}:80"
+    depends_on:
+      - backend
+
+volumes:
+  droplink_uploads:
+  droplink_data:
